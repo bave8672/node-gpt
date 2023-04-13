@@ -1,0 +1,30 @@
+{
+  "name": "playground",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "@pinecone-database/pinecone": "0.0.12",
+    "chatgpt": "^5.2.2",
+    "docker-cli-js": "^2.10.0",
+    "dotenv": "^16.0.3",
+    "hnswlib-node": "^1.4.2",
+    "langchain": "0.0.52",
+    "prompt-sync": "^4.2.0",
+    "tsx": "^3.12.6",
+    "typescript": "^5.0.4",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/uuid": "^9.0.1"
+  },
+  "scripts": {
+    "build:ts": "tsc",
+    "build:docker": "docker build -t node-gpt .",
+    "start:docker": "docker run -it node-gpt",
+    "stop:docker": "docker stop node-gpt && docker rm node-gpt",
+    "start": "npm run build:ts && npm run build:docker && npm run start:docker",
+    "start:local": "npx tsx src/main.ts"
+  },
+  "author": ""
+}
