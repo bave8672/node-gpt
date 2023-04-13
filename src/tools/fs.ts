@@ -7,11 +7,11 @@ export class WriteFileTool extends DynamicTool {
     super({
       name: "Write file",
       description:
-        "Take a relative file path, writes any subsequent content into a file at that path.",
+        "Input must be in the format <file> <content>, e.g. file.txt 'Hello world!' Said the Giraffe.",
       func: async (input: string) => {
         const [file, data] = /^(\w+)\s+(.?)$/.exec(input) || ["", ""];
         const filePath = getFilePath(workDir, file);
-        await fs.writeFile(filePath, data);
+        await fs.writeFile(filePath, data || "");
         return "";
       },
     });
@@ -24,9 +24,7 @@ export class ReadFileTool extends DynamicTool {
       name: "Read file",
       description: "Read the contents from a file path.",
       func: async (file: string) => {
-        const workDirPath = path.join(__dirname, workDir);
-        const filePath = path.join(workDirPath, file);
-        assertPathInside(filePath, path.join(workDirPath, workDir));
+        const filePath = getFilePath(workDir, file);
         const buffer = await fs.readFile(filePath);
         return buffer.toString();
       },
@@ -42,6 +40,20 @@ export class RemoveFileTool extends DynamicTool {
       func: async (file: string) => {
         const filePath = getFilePath(workDir, file);
         await fs.rm(filePath);
+        return "";
+      },
+    });
+  }
+}
+
+export class CreateDirectoryTool extends DynamicTool {
+  constructor(workDir: string) {
+    super({
+      name: "Create directory",
+      description: "Creates a directory at a given path",
+      func: async (dirname: string) => {
+        const dirPath = getFilePath(workDir, dirname);
+        await fs.mkdir(dirname);
         return "";
       },
     });
@@ -67,6 +79,7 @@ export function createFsTools(workDir: string) {
     new WriteFileTool(workDir),
     new ReadFileTool(workDir),
     new RemoveFileTool(workDir),
+    new CreateDirectoryTool(workDir),
     new RemoveDirectoryTool(workDir),
   ];
 }
@@ -91,8 +104,7 @@ function assertPathInside(childPath: string, parentPath: string) {
 }
 
 function getFilePath(workDir: string, file: string): string {
-  const workDirPath = path.join(__dirname, workDir);
-  const filePath = path.join(workDirPath, file);
-  assertPathInside(filePath, path.join(workDirPath, workDir));
+  const filePath = path.join(workDir, file);
+  assertPathInside(filePath, workDir);
   return filePath;
 }

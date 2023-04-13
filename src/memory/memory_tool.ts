@@ -6,7 +6,7 @@ export class MemoryTool extends DynamicTool {
     super({
       name: "Long term memory",
       description:
-        "Useful for when you need to remember work that has already been performed. Returns previous interactions that are relevant to a query.",
+        "Useful for when you need to remember work that has already been performed. Returns previous decisions, strategies and outputs that are relevant to the provided query.",
       func: (query: string) => memory.getRelevant(query),
     });
   }

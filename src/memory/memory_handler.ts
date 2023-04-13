@@ -9,19 +9,18 @@ export function createMemoryHandler(memory: BaseMemory) {
       await memory.add(text);
     },
 
-    // Store tool input
-    async handleToolStart(tool, input: string) {
-      await memory.add(input);
-    },
-
     // Store tool output
     async handleToolEnd(output) {
       await memory.add(output);
     },
 
-    // Clear long term memory on agent exit
-    async handleAgentEnd() {
-      await memory.clear();
+    async handleChainEnd(outputs) {
+      await memory.add(JSON.stringify(outputs));
+    },
+
+    // Add agent output to memory
+    async handleAgentEnd(action) {
+      await memory.add(JSON.stringify(action));
     },
   });
 }

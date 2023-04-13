@@ -9,8 +9,13 @@ import { MemoryTool } from "./memory/memory_tool";
 import { createMemoryHandler } from "./memory/memory_handler";
 import { createFsTools } from "./tools/fs";
 import { ShellTool } from "./tools/shell";
+import * as path from "path";
+import { exec } from "child_process";
 
-const workDir: string = process.env.WORK_DIR || "workspace";
+const workDir: string = path.join(
+  __dirname,
+  process.env.WORK_DIR || "workspace"
+);
 
 export async function createAgent({
   name,
@@ -26,9 +31,10 @@ export async function createAgent({
 }) {
   const id = uuid.v4();
   const longTermMemory = createMemory(id);
+  longTermMemory.add("");
   const model = new ChatOpenAI({ temperature });
   const tools = [
-    new SerpAPI(),
+    // new SerpAPI(), // sometimes goes weird and always tries to google everything
     new MemoryTool(longTermMemory),
     ...createFsTools(workDir),
     new ShellTool(),
@@ -36,8 +42,7 @@ export async function createAgent({
   const executor = await initializeAgentExecutor(
     tools,
     model,
-    "chat-conversational-react-description",
-    true
+    "chat-conversational-react-description"
   );
   // Short term memory: recent chat history
   const shortTermMemory = new BufferMemory({
@@ -53,21 +58,42 @@ export async function createAgent({
   executor.callbackManager.addHandler(createMemoryHandler(longTermMemory));
 
   const createPrompt = (feedback: string) =>
-    `You are ${name}.
+    feedback
+      ? `FEEDBACK: ${feedback}`
+      : `You are ${name}.
+
+GOAL: ${goal}
+
+You must persue your goal perpetually and long-term, without human oversight,
 
 Your decisions must always be made independently without seeking user assistance. Play to your strengths as an LLM and pursue strategies with no legal complications.
+
+CONSTRAINTS:
+
+1. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.
+2. No user assistance
+
+TOOLS:
 
 You have access to the following tools:
 ${tools.map((tool) => `${tool.name}: ${tool.description}`).join("\n")}
 
-GOAL: ${goal}
+YOu are running on a machine with node.js installed and access to the internet, and can run arbitrary terminal commands.
 
-${feedback ? `Feedback: ${feedback}` : ""}
-`.trim();
+Prefer to do work first and search only if genuinely unsure.
 
+PERFORMANCE EVALUATION:
+
+1. Continuously review and analyze your actions to ensure you are performing to the best of your abilities.
+2. Constructively self-criticize your big-picture behavior constantly.
+3. Reflect on past decisions and strategies to refine your approach.
+4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.`.trim();
+
+  let feedback = "";
   while (true) {
-    const feedback = await getFeedback();
     const input = createPrompt(feedback);
-    await executor.call({ input });
+    longTermMemory.add(input);
+    const values = await executor.call({ input });
+    feedback = await getFeedback();
   }
 }
