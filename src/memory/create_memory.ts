@@ -8,7 +8,9 @@ enum MemoryImpl {
 }
 
 const MEMORY_IMPL = (process.env.MEMORY_IMPL as MemoryImpl) || MemoryImpl.Hnsw;
-const K = Number(process.env.K || 5);
+const K = Number(process.env.MEMORY_K) || 5;
+const apiKey = process.env.PINECONE_API_KEY || "";
+const environment = process.env.PINECONE_ENVIRONMENT || "";
 
 export function createMemory(id: string): BaseMemory {
   switch (MEMORY_IMPL) {
@@ -17,8 +19,8 @@ export function createMemory(id: string): BaseMemory {
     case MemoryImpl.Pinecone:
       return new PineconeMemory({
         name: id,
-        apiKey: process.env.PINECONE_API_KEY || "",
-        environment: process.env.PINECONE_ENVIRONMENT || "",
+        apiKey,
+        environment,
         k: K,
       });
     default:

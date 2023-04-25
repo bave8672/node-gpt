@@ -1,22 +1,21 @@
 {
-  "name": "playground",
-  "version": "1.0.0",
-  "description": "Auto-GPT but node.js",
+  "name": "node-gpt",
+  "description": "Auto-GPT but node",
   "dependencies": {
     "@pinecone-database/pinecone": "0.0.12",
     "chatgpt": "^5.2.2",
-    "docker-cli-js": "^2.10.0",
     "dotenv": "^16.0.3",
     "hnswlib-node": "^1.4.2",
     "langchain": "0.0.52",
     "prompt-sync": "^4.2.0",
-    "tsx": "^3.12.6",
-    "typescript": "^5.0.4",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.15.11",
-    "@types/uuid": "^9.0.1"
+    "@types/prompt-sync": "^4.2.0",
+    "@types/uuid": "^9.0.1",
+    "tsx": "^3.12.6",
+    "typescript": "^5.0.4"
   },
   "scripts": {
     "build:ts": "tsc",
@@ -26,14 +25,16 @@
     "start": "npm run build:ts && npm run build:docker && npm run start:docker",
     "start:local": "npx tsx src/main.ts"
   },
-  "author": "",
-  "main": "index.js",
+  "author": "Ben Aves",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bave8672/node-gpt.git"
   },
-  "keywords": [],
-  "license": "ISC",
+  "keywords": [
+    "GPT",
+    "AI",
+    "Auto"
+  ],
   "bugs": {
     "url": "https://github.com/bave8672/node-gpt/issues"
   },

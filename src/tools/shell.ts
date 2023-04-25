@@ -5,20 +5,20 @@ export class ShellTool extends DynamicTool {
   constructor() {
     super({
       name: "Shell",
-      description: "Runs an arbitrary shell command on the local machine.",
+      description:
+        "Runs an arbitrary shell command. Multiple commands can be chained with &&",
       func: execPromise,
     });
   }
 }
 
 function execPromise(command: string) {
-  return new Promise<string>((res, rej) => {
+  return new Promise<string>((res) => {
     exec(command, (err, stdout, stderr) => {
       if (err) {
-        // Return the error to the LLM and continue
-        res(JSON.stringify(err));
+        res(err.message);
       }
-      res(stdout + stderr);
+      res(stderr + stdout);
     });
   });
 }

@@ -1,7 +1,7 @@
-import { initializeAgentExecutor } from "langchain/agents";
+import { Tool, initializeAgentExecutor } from "langchain/agents";
 import { SerpAPI } from "langchain/tools";
 import * as uuid from "uuid";
-import { ChatOpenAI } from "langchain/chat_models/openai";
+import { OpenAI } from "langchain/llms/openai";
 import { BufferMemory } from "langchain/memory";
 import { ConsoleCallbackHandler } from "langchain/callbacks";
 import { createMemory } from "./memory/create_memory";
@@ -10,12 +10,16 @@ import { createMemoryHandler } from "./memory/memory_handler";
 import { createFsTools } from "./tools/fs";
 import { ShellTool } from "./tools/shell";
 import * as path from "path";
-import { exec } from "child_process";
+import { GetHumanFeedback as GetHumanFeedbackTool } from "./tools/request_feedback";
+import { ChainValues } from "langchain/schema";
+import { Delegator } from "./delegator";
+import { Delegate as DelegateTool } from "./tools/delegate";
 
-const workDir: string = path.join(
-  __dirname,
-  process.env.WORK_DIR || "workspace"
-);
+// todo: Move these to an abstract def file
+export type FeedbackOpts = { name: string };
+export type Feedback = { text: string; continue: boolean };
+
+const workDir: string = path.join(__dirname, process.env.WORK_DIR || ".");
 
 export async function createAgent({
   name,
@@ -25,30 +29,32 @@ export async function createAgent({
 }: {
   name: string;
   goal: string;
-  temperature: number;
-  // User feedback on the orevious action
-  getFeedback: (/** todo: arg? */) => Promise<string>;
+  temperature?: number;
+  // User feedback on the previous action
+  getFeedback: (opts: FeedbackOpts) => Promise<Feedback>;
 }) {
   const id = uuid.v4();
+  const delegator = new Delegator();
   const longTermMemory = createMemory(id);
   longTermMemory.add("");
-  const model = new ChatOpenAI({ temperature });
-  const tools = [
-    // new SerpAPI(), // sometimes goes weird and always tries to google everything
+  const model = new OpenAI({ modelName: "gpt-3.5-turbo", temperature });
+  const tools: Tool[] = [
     new MemoryTool(longTermMemory),
     ...createFsTools(workDir),
     new ShellTool(),
+    new GetHumanFeedbackTool(() => getFeedback({ name })),
+    new DelegateTool(delegator),
   ];
+  if (process.env.SERPAPI_API_KEY) {
+    tools.push(new SerpAPI());
+  }
   const executor = await initializeAgentExecutor(
     tools,
     model,
-    "chat-conversational-react-description"
+    "zero-shot-react-description"
   );
   // Short term memory: recent chat history
-  const shortTermMemory = new BufferMemory({
-    returnMessages: true,
-    memoryKey: "chat_history",
-  });
+  const shortTermMemory = new BufferMemory();
   executor.memory = shortTermMemory;
   // Log output to console
   executor.callbackManager.addHandler(
@@ -64,21 +70,18 @@ export async function createAgent({
 
 GOAL: ${goal}
 
-You must persue your goal perpetually and long-term, without human oversight,
+You must persue your goal perpetually and long-term, without human oversight.
 
 Your decisions must always be made independently without seeking user assistance. Play to your strengths as an LLM and pursue strategies with no legal complications.
 
-CONSTRAINTS:
-
-1. If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.
-2. No user assistance
+If you are unsure how you previously did something or want to recall past events, thinking about similar events will help you remember.
 
 TOOLS:
 
 You have access to the following tools:
-${tools.map((tool) => `${tool.name}: ${tool.description}`).join("\n")}
+${tools.map((tool) => `${tool.name}`).join("\n")}
 
-YOu are running on a machine with node.js installed and access to the internet, and can run arbitrary terminal commands.
+You are running on a machine with node installed and access to the internet, and can run arbitrary terminal commands.
 
 Prefer to do work first and search only if genuinely unsure.
 
@@ -89,11 +92,20 @@ PERFORMANCE EVALUATION:
 3. Reflect on past decisions and strategies to refine your approach.
 4. Every command has a cost, so be smart and efficient. Aim to complete tasks in the least number of steps.`.trim();
 
-  let feedback = "";
-  while (true) {
-    const input = createPrompt(feedback);
-    longTermMemory.add(input);
-    const values = await executor.call({ input });
-    feedback = await getFeedback();
+  let feedback: Feedback = { continue: true, text: "" };
+  let output: ChainValues = {};
+  while (feedback.continue) {
+    try {
+      const input = createPrompt(feedback.text);
+      longTermMemory.add(input);
+      output = await executor.call({ input });
+    } catch (err) {
+      console.error(err);
+    }
+    feedback =
+      (await getFeedback({ name })) ||
+      (await delegator.popCompletedTaskResponse());
   }
+
+  return output;
 }

@@ -7,12 +7,16 @@ export class WriteFileTool extends DynamicTool {
     super({
       name: "Write file",
       description:
-        "Input must be in the format <file> <content>, e.g. file.txt 'Hello world!' Said the Giraffe.",
+        "Input must be in the format <file> <content>, e.g. file.txt Hello world! Said the Giraffe.",
       func: async (input: string) => {
-        const [file, data] = /^(\w+)\s+(.?)$/.exec(input) || ["", ""];
-        const filePath = getFilePath(workDir, file);
-        await fs.writeFile(filePath, data || "");
-        return "";
+        try {
+          const [file, data] = /^(\S+)\s+(.+)$/.exec(input) || ["", ""];
+          const filePath = getFilePath(workDir, file);
+          await fs.writeFile(filePath, data || "");
+          return "";
+        } catch (err) {
+          return (err as any)?.message || (err as any)?.toString() || "";
+        }
       },
     });
   }
@@ -24,9 +28,13 @@ export class ReadFileTool extends DynamicTool {
       name: "Read file",
       description: "Read the contents from a file path.",
       func: async (file: string) => {
-        const filePath = getFilePath(workDir, file);
-        const buffer = await fs.readFile(filePath);
-        return buffer.toString();
+        try {
+          const filePath = getFilePath(workDir, file);
+          const buffer = await fs.readFile(filePath);
+          return buffer.toString();
+        } catch (err) {
+          return (err as any)?.message || (err as any)?.toString() || "";
+        }
       },
     });
   }
@@ -38,8 +46,12 @@ export class RemoveFileTool extends DynamicTool {
       name: "Remove file",
       description: "Removes the file at the given path.",
       func: async (file: string) => {
-        const filePath = getFilePath(workDir, file);
-        await fs.rm(filePath);
+        try {
+          const filePath = getFilePath(workDir, file);
+          await fs.rm(filePath);
+        } catch (err) {
+          return (err as any)?.message || (err as any)?.toString() || "";
+        }
         return "";
       },
     });
@@ -52,8 +64,11 @@ export class CreateDirectoryTool extends DynamicTool {
       name: "Create directory",
       description: "Creates a directory at a given path",
       func: async (dirname: string) => {
-        const dirPath = getFilePath(workDir, dirname);
-        await fs.mkdir(dirname);
+        try {
+          await fs.mkdir(dirname);
+        } catch (err) {
+          return (err as any)?.message || (err as any)?.toString() || "";
+        }
         return "";
       },
     });
@@ -63,11 +78,15 @@ export class CreateDirectoryTool extends DynamicTool {
 export class RemoveDirectoryTool extends DynamicTool {
   constructor(workDir: string) {
     super({
-      name: "Remove file",
+      name: "Remove directory",
       description: "Removes the file at the given path.",
       func: async (file: string) => {
-        const filePath = getFilePath(workDir, file);
-        await fs.rmdir(filePath);
+        try {
+          const filePath = getFilePath(workDir, file);
+          await fs.rmdir(filePath);
+        } catch (err) {
+          return (err as any)?.message || (err as any)?.toString() || "";
+        }
         return "";
       },
     });
@@ -98,7 +117,7 @@ function isPathInside(childPath: string, parentPath: string) {
 function assertPathInside(childPath: string, parentPath: string) {
   if (!isPathInside(childPath, parentPath)) {
     throw new Error(
-      `Cannot perform file system action for path ${childPath} that is outside ${parentPath}`
+      `Not allowed to perform file system action for path ${childPath} that is outside ${parentPath}`
     );
   }
 }
